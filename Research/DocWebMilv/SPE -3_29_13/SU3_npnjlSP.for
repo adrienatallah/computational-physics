@@ -1,0 +1,1493 @@
+! Changed to single precision
+
+!!!!!!!!!!!!!!!!!PROGRAMA NON LOCAL NJL CON POLYAKOV EN SU(3)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!Basado en el articulo ''Nonlocal SU(3) chiral quark models at finite temperature:
+!The role of the Polyakov loop'' Gustavo A. Contrera, Daniel G�mez Dumm, Norberto N. Scoccola
+
+!PROGRAMA A TEMPERATURA Y POTENCIAL QUIMICO FINITOS
+      
+!Recordar cambiar la libreria : imsl.lib imsls_err.lib IMSLMPISTUB.LIB 
+
+!BEGIN MAIN***************************************************************************************
+	Implicit none
+	Integer itmax,l,nreg,N,Nmax,k,i,j,Mmax,m 
+	Integer title1,title2,title3,title4,poly,INTERV
+	Parameter (N=3)
+      Parameter (Nmax=70) !Para el potencial quimico
+	Parameter (Mmax=199) !Para la Temperatura
+	Complex(4) rg,w2
+	Real*4 N_c,pi,pi2,Lambda,G_s,H 
+        Real*4 FNORM, mu, muinf, musup, dmu,F(N)
+        Real*4 X(N),sigui,sigsi,phi3i,XGUESS(N),erro
+        Real*4 Tinf,Tsup,dT,T,xT,dxT, xm,dxm, xms,dxms,ms,mc
+	Real*4 sigu,sigs,phi3,dxmu,xmu,rho,hbarc,Om_pot,Denso
+	Real*4 BOUND,ERRABS,ERREL,ERREST,C_ss,qq_s,qq_u,M_s,M_u
+	Real*4 Q_uu,Q_ss,cond_u,cond_s,Omega,Pot_U,Denu,Dens,rho_B
+	Real*4 sigumax,sigsmax,p_0,chi_u,chi_s
+	Real*4 Susc_u,Susc_s,qq_ushift,qq_sshift
+
+
+      EXTERNAL FCN,NEQNF,C_ss,C_uu
+
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/fcnsu3/sigu,sigs,phi3
+	Common/polyakov/poly
+	Common/param_QDAGI/BOUND,ERRABS,ERREL,ERREST,INTERV
+	Common/maxvalues/sigumax,sigsmax 
+      Common/vacuo/p_0
+
+      
+	Data hbarc/197.327e0/  !MeV.fm
+      Data dxm/1.e-7/  !.9d-5
+	Data dxms/1.e-5/ !.9d-5
+	Data dxmu/1.e-6/ !1.d-5
+	Data dxT/1.e-4/  !.9d-4
+	Data rho/1.3e6/
+	Data mu/0.0e0/
+
+
+      pi=4.0e0*atan(1.0e0)   !	pi=3.141592654D0
+
+	pi2=pi**2
+      
+	title1=1  !Nombre de los archivos de salida
+	title2=1
+	title3=1
+	title4=1
+	
+      !poly=1 NO incluye Polyakov
+	poly=1
+	nreg=1 !marca los sets de parametros
+
+
+	If(poly.eq.1)then
+	N_c=3.0
+	else
+	N_c=1.0
+	endif
+
+!+++++++++PARAMETROS PARA LAS INTEGRALES SEMI-INFINITAS(QDAGI)+++
+!Set limits of integration
+      BOUND  = 0.0
+      INTERV = 1
+
+!Set error tolerances for the integral
+      ERRABS =0.0 !1.d-5
+      ERREL =1.e-3      !1.d-8
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        
+         !Datos para el SET I
+!      If (nreg.eq.1) then
+!	Lambda=842.9517109432D0        !MeV
+!      mc=5.0d0              !MeV 
+!	ms=119.2474094840D0              !MeV 
+!      G_s=13.3450291392D0/Lambda**2   !1/MeV^2!
+!	H=-273.7477267621D0/Lambda**5   !1/MeV^5
+!	sigumax=366.469274690640d0	       
+!	sigsmax=486.191144251437d0
+!	Endif
+
+	         !Datos para el SET I
+!      If (nreg.eq.1) then
+!	Lambda=709.D0        !MeV
+!      mc=8.5d0              !MeV 
+!	ms=223.D0              !MeV 
+!      G_s=10.99D0/Lambda**2   !1/MeV^2!
+!	H=-295.3D0/Lambda**5   !1/MeV^5
+!	Endif
+	!Datos para el SET COMPARATIVO
+	If (nreg.eq.1) then
+	Lambda=705.996432415474        !MeV
+      mc=6.19711753633038              !MeV 
+	ms=140.7		            !MeV 
+      G_s=15.0398354983559/Lambda**2   !1/MeV^2!
+	H=-337.711951782219/Lambda**5   !1/MeV^5
+      p_0=-1789388888.53626
+
+      endif
+
+
+
+	
+      If(nreg.eq.1.and.poly.eq.1)then
+      sigui=450.0   !366.9d0  !chutes iniciais p/sist de eq. n-lineares set I
+      sigsi=600.0     !424.d0  !542.553d0
+	phi3i=0.0
+	else
+	sigui=350.0  !chutes iniciais p/sist de eq. n-lineares set I
+      sigsi=500.0
+	phi3i=60.0
+      endif
+
+!**************************************************!        
+! FIJO LA TEMPERATURA Y VARIO EL POTENCIAL QUIMICO !
+!**************************************************!
+
+      muinf=100.0    
+      musup=350.0       !132.55d0         
+      dmu=(musup-muinf)/Nmax
+  
+      xmu=muinf
+!      Do l=0,Nmax
+!**************************************************!        
+! FIJO EL POTENCIAL QUIMICO Y VARIO LA TEMPERATURA !
+!**************************************************!
+
+      Tinf=50.0   
+      Tsup=200.0        
+	dT=(Tsup-Tinf)/Mmax
+
+      xT=Tinf
+
+!      Do j=0,Mmax
+
+!	Do 50 m=1,2
+!	xT=T+(m-2)*dxT
+
+      
+!	Do 30 i=1,2
+!	xmu=mu+(i-2)*dxmu
+
+      Do 80 k=1,2
+	xm=mc+(k-1)*dxm
+
+	Do 30 i=1,2
+      xms=ms+(i-1)*dxms
+!	Do 50 l=1,2
+!	xms=ms  !+(i-2)*dxm
+
+
+ 
+!*****************************************************************************
+!Set values of initial guess for the non-linear system
+   !   If(T.eq.30.d0)then
+      
+! 	If(xT.eq.Tinf.and.mu.eq.muinf)then
+ !     If(T.eq.Tinf)then
+      If(xmu.eq.muinf.or.xmu.eq.musup.and.xT.eq.Tinf)then
+	xguess(1)=sigui
+      xguess(2)=sigsi
+      xguess(3)=phi3i
+	else
+	xguess(1)=sigu
+	xguess(2)=sigs
+      xguess(3)=phi3
+	endif
+
+	Itmax=100      !(maximum number of iterations for the non-linear system)
+
+	erro=1.e-4    !1.d-10
+
+	CALL NEQNF (FCN,erro, N,itmax, xguess, x,fnorm)
+!      call FCN (X, F, N)
+ !     call Densidad(x,Denu,Dens,rho_B)
+
+!      CALL QDAGI (Funs_bar1,BOUND,INTERV,ERRABS1,ERREL1,xint1,ERREST)
+
+!	ERRABS2 =0.0d0  ! 1.d-3
+!      ERREL2 =1.d-5   !1.d-8
+!      CALL QDAGI (Funs_bar2,BOUND,INTERV,ERRABS1,ERREL2,xint2,ERREST)
+       
+!      ERRABSCON=0.0D0
+!	ERRELCON=1.D-5    !1.d-8 
+
+!	CALL QDAGI (Fun_qq,BOUND,INTERV,ERRABSCON,ERRELCON,xpair,ERREST)
+
+	!Set error tolerances for the integral
+!      ERRAB =0.0d0     !1.d-5
+!      ERREL = 1.d-5   !1.d-8
+
+!	CALL QDAGI(Deriv_mu,BOUND,INTERV,ERRAB,ERREL,xdensi,ERREST)
+
+    !**********************************************
+    
+!50    continue
+      CALL QDAGI (C_ss,BOUND,INTERV,ERRABS,ERREL,qq_s,ERREST)
+
+      If (i.eq.1)qq_sshift=qq_s
+30    continue
+
+      CALL QDAGI (C_uu,BOUND,INTERV,ERRABS,ERREL,qq_u,ERREST)
+           
+	If (k.eq.1)qq_ushift=qq_u
+80    continue
+      
+!	Call Densidad(x,den)
+
+
+!	If (i.eq.1)xdenmenos=xdensi
+!      If (i.eq.1)Om_pot=Omega(sigu,sigs,phi3)
+!30    continue
+!      If (i.eq.1)Denso=den
+!30    continue
+
+
+!50    If (m.eq.1)Om_pot=Omega(sigu,sigs,phi3) !,xT)
+
+
+
+!	conden=-(4.d0*N_c*xT/pi2)*xpair
+!     cond_u=(-Q_uu(x(1)))**(1.0D0/3.0D0)
+!	cond_s= (-Q_ss(x(2)))**(1.0D0/3.0D0) 
+
+	Q_uu=-4.0*xT*N_c*qq_u/pi2
+	Q_ss=-4.0*xT*N_c*qq_s/pi2
+   
+
+	If (Q_uu.lt. 0.0) then
+		cond_u=(-Q_uu)**(1.0/3.0)
+	else
+		cond_u=-(abs(Q_uu)**(1.0/3.0))
+	endif
+
+	If (Q_ss.lt. 0.0) then
+		cond_s=(-Q_ss)**(1.0/3.0)
+	else
+		cond_s=-(abs(Q_ss)**(1.0/3.0))
+	endif
+
+!****************************************************
+      !EXPRESION PARA EL CALOR ESPECIFICO
+!	dif=Inpo_temp-Po_temp(phi3,s_bar1,s_bar2) !,xT)
+
+!	Ca=xT*(dif/dxT)
+
+!	write(*,*)'primera derivada'
+!      write(*,*)Po_temp(phi3,s_bar1,s_bar2,xT)
+!	write(*,*)'primera derivada'
+!	Pause
+!****************************************************
+      !EXPRESION PARA LA SUSCEPTIBILIDAD QUIRAL
+
+	Susc_u=-(4.0*N_c*xT/pi2)*((qq_ushift-qq_u)/dxm)
+      Susc_s=-(4.0*N_c*xT/pi2)*((qq_sshift-qq_s)/dxms)
+
+!****************************************************
+      !EXPRESION PARA LA SUSCEPTIBILIDAD BARIONICA	
+
+!	Denso=(4.d0*N_c*xT/pi2)*(Om_pot-Omega(sigu,sigs,phi3))/dxmu
+
+!      Susbarion=(den-denso)/dxmu
+
+!*****************************************************
+      !SUSCEPTIBILIDAD ASOCIADA AL LOOP DE POLYAKOV
+
+!!	JISPHI3=(2.D0/3.D0*xT**2)*DSIN(phi3/xT)
+!	trace=(1.d0/3.d0)*(1.d0+2.d0*dcos(phi3/xT))
+   
+!*****************SALIDA******************************
+      Open(3,file='sigmas_mu50.dat')
+	Open(4,file='suscep_mu50.dat')
+
+8       Format(3x,7D14.6)   !
+  
+
+      M_u=real(xm+x(1)*rg(w2))
+      M_s=real(xms+x(2)*rg(w2))
+
+
+	
+	If (title1.eq.1)then
+!	write(3,*)'T,sigu,sigs,<uu>,<ss>,Omega'
+      write(3,*)'mu,T,sigu,sigs,cond_u,cond_s, Granpot'
+	write(3,*)''
+	endif
+	title1=2
+
+	If (title2.eq.1)then
+!	write(3,*)'T,sigu,sigs,<uu>,<ss>,Omega'
+      write(4,*)'mu,T,chi_u,chi_s, Granpot'
+	write(4,*)''
+	endif
+	title2=2
+
+
+      
+
+	write(3,8)xmu,xT,x(1),x(2),cond_u,cond_s,Omega(x(1),x(2),x(3))
+      write(4,8)xmu,xT,Susc_u,Susc_s,Omega(x(1),x(2),x(3))
+
+
+!	write(3,8)xT,x(1),x(2),cond_u,cond_s,Omega(sigu,sigs,phi3)
+   
+      write(*,*)'T=',xT,'xmu=',xmu
+	write(*,*)''
+	write(*,*)'condensados       ','<uu>=',cond_u,'<ss>=', cond_s
+	write(*,*)''
+	write(*,*)'M_u',M_u,'M_s',M_s	 
+      write(*,*)''
+	write(*,*)'Granpotencial=',Omega(x(1),x(2),x(3)) !,'Densidad',Denso
+	write(*,*)''
+	write(*,*)'Pot_U=',Pot_U(x(3),xT)   !,'denu',denu,'dens',dens
+	write(*,*)''
+      write(*,*)'sigu=',x(1),'sigs=',x(2),'phi3=',x(3)
+	write(*,*)'suscept','x_u=',Susc_u,'x_s=',Susc_s
+	write(*,*)''
+ !     pause
+!	xT=xT+dT			
+!      Enddo
+
+!      xmu=xmu+dmu      
+!      Enddo
+!      Pause
+      Stop
+ !     pause
+	end
+!***********************************END MAIN*************************************
+!regulador g interacciones no locales
+!****************************************************************     
+      Function rg(w2)
+      Implicit none
+	Integer nreg
+      Complex(4) rg,w2
+      Real*4 pi2,N_c,xT,mu,G_s,H,sigu,sigs,phi3,Lambda
+
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+	Common/fcnsu3/sigu,sigs,phi3
+      
+	If(nreg.eq.1)then
+	rg = cexp(-w2/Lambda**2)
+	Endif
+
+	Return
+	 End
+!***************************************************************
+!Evaluacion de las integrales en un intervalo semi-infinito 
+!***************************************************************
+!INTEGRAL S PARA LOS QUARKS u y d !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        Function S_u(p)
+	  Implicit none 
+        Integer j,nreg,n3,poly,n3_inic
+	  Complex(4) rg,w2,M 
+        Real*4 Sum,dSum, p,xmu,mu,sigu,sigs,phi3,suma_ant
+        Real*4 Lambda,freq,xm,xms
+        Real*4 pi2,N_c,xT,S_u,G_s,H
+	  Real*4 Color,dColor
+      
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+!	write(*,*)'sigu',sigu
+
+	  
+! 	p=500.d0 
+	 Color=0.e0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+        Do n3=n3_inic,1
+
+	  
+	  Sum=0.0
+       Do j = 0,3000
+	suma_ant=sum
+ 
+		freq=((2*j+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+
+      w2=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))**2+(1.,0.)*p**2
+	
+	If(nreg.eq.1)then
+!		write(*,*)'sigu',sigu
+		M=xm+sigu*rg(w2)
+      endif
+
+       dSum=real((rg(w2)*M)/(w2+M**2))
+       Sum=Sum+dSum
+	if(sum .eq. suma_ant) exit
+       Enddo
+!      write(*,*)''
+!	write(*,*)'num',dreal(rg(w2)*M),'denom',dreal((w2+M**2)),'n',j
+!	write(*,*)'M',M,'rg(w2)',rg(w2)
+!	write(*,*)'xm',xm,'sigu',sigu
+!	write(*,*)'Sum',Sum,'suma_ant',suma_ant,'n',j
+!      pause
+!	write(*,*)'w2',w2,'freq',freq,'rg',rg(w2),'M',M
+!	pause
+
+!      do n=0,3000
+!      suma_ant=suma
+!      wn=(2*n+1)*pi*temp
+!      w2=(wn+i*pot)**2+p**2
+!      denom=dreal((w2+sigmag_compleja(mu,sigu,w2)**2))
+!      numerad=dreal(g_compleja(w2)*sigmag_compleja(mu,sigu,w2))
+!      suma=suma+(numerad/denom)
+!      if (suma_ant .eq. suma) exit
+!      end do
+
+
+	 dColor=Sum
+	 Color=Color+dColor
+	 Enddo      
+	  
+	    S_u= p**2*Color
+	        
+       RETURN           
+       END
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!INTEGRAL S PARA EL QUARK s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        Function S_s(p)
+	  Implicit none 
+        Integer j,nreg,n3,poly,n3_inic
+	  Complex(4) rg,w2,M 
+        Real*4 Sum,dSum, p, xmu,mu,sigu,sigs,phi3,suma_ant
+        Real*4 Lambda,freq,xm,xms
+        Real*4 pi2, N_c,xT,S_s ,G_s,H
+	  Real*4 Color,dColor
+      
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+	  
+! 	p=500.d0 
+	 Color=0.0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+        Do n3=n3_inic,1
+	       
+	  
+	  Sum=0.0
+       Do j = 0,3000
+	suma_ant=sum
+ 
+		freq=((2*j+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+
+      w2=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))**2+(1.,0.)*p**2
+	
+	If(nreg.eq.1)then
+	
+		M=xms+sigs*rg(w2)
+      endif
+
+       dSum=real(rg(w2)*M/(w2+M**2))
+       Sum=Sum+dSum
+	if(sum .eq. suma_ant) exit
+       Enddo
+!	write(*,*)''
+!	write(*,*)'sigu=',sigu,'sigs=',sigs
+!	write(*,*)''
+!	write(*,*)'num',dreal(rg(w2)*M),'denom',dreal((w2+M**2))
+!	write(*,*)'M',M,'rg(w2)',rg(w2)
+!	write(*,*)'xms',xms,'sigs',sigs
+!	write(*,*)'Sum',Sum,'n',j
+
+!	pause
+
+
+	 dColor=Sum
+	 Color=Color+dColor
+	 Enddo      
+        
+	    S_s= p**2*Color
+	        
+       RETURN           
+       END
+!**************************************************************************************
+!INTEGRAL CONDENSADO PARA LOS QUARKS u y d
+        FUNCTION C_uu(p)
+	  Implicit none
+        Integer i,nreg,n3,n3_inic,poly
+	  Complex(4) w2,rg,e1,e2,M,n1,n2
+        Real*4 pi2,N_c,xT,mu,G_s,H,Lambda,xmu,Ep,suma_ant
+        Real*4 p,sigu,sigs,phi3,xm,xms,freq,C_uu
+	  Real*4 Color,dColor,Sum,dSum,termo
+
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+!   	xT=220.d0
+!	p=200.d0
+	  Color=0.0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+	Do n3=n3_inic,1
+
+	 	   
+        Sum=0.0
+       Do i = 0,3000
+	suma_ant=sum
+  
+	   freq=((2*i+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+	       
+	w2=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))**2+(1.,0.)*p**2
+	
+
+	If(nreg.eq.1)then
+	M=(xm+sigu*rg(w2))
+
+	endif  
+	     		       
+          dSum=real(M/(w2+M**2)-xm/(w2+xm**2))
+          Sum=Sum+dSum
+	if(sum .eq. suma_ant) exit
+	Enddo
+      
+	!Termino de regularizacion!!!!!!!!!!!!!!!!!!!!!!!      
+!	Ep=dsqrt(p**2+xm**2)
+      
+
+!	e1=cdexp(-(Ep-xmu+n3*phi3*(0.,1.))/xT)
+!	e2=cdexp(-(Ep+xmu-n3*phi3*(0.,1.))/xT)
+!	n1=1.d0+e1
+!	n2=1.d0+e2
+!      termo=(xm/(2.d0*xT*Ep))*dreal((e1/n1)+(e2/n2))
+
+!	
+
+!	write(*,*)'Sum',Sum,'term',-termo,'n',i
+!      pause    
+		dColor=Sum  !-termo	
+
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	    Color=Color+dColor
+
+      Enddo
+     
+	 C_uu =p**2*Color
+
+   
+	   RETURN	   
+         END
+!**************************************************************************************
+!INTEGRAL CONDENSADO PARA EL QUARK s
+        FUNCTION C_ss(p)
+	  Implicit none
+        Integer i,nreg,n3,n3_inic,poly
+	  Complex(4) w2,rg,e1,e2,M,n1,n2
+        Real*4 pi2,N_c,xT,mu,G_s,H,Lambda,xmu,Ep,suma_ant
+        Real*4 p,sigu,sigs,phi3,xm,xms,freq,C_ss
+	  Real*4 Color,dColor,Sum,dSum,termo
+
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+	   	   
+	  Color=0.0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+	Do n3=n3_inic,1
+
+	 	   
+        Sum=0.0
+       Do i = 0,3000
+	suma_ant=sum
+  
+	   freq=((2*i+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+	       
+	w2=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))**2+(1.,0.)*p**2
+	
+
+	If(nreg.eq.1)then
+	M=(xms+sigs*rg(w2))
+
+	endif  
+	     		       
+          dSum=real(M/(w2+M**2)-xms/(w2+xms**2))
+          Sum=Sum+dSum
+	if(sum .eq. suma_ant) exit
+	Enddo
+      
+	!Termino de regularizacion!!!!!!!!!!!!!!!!!!!!!!!      
+!	Ep=dsqrt(p**2+xms**2)
+      
+
+!	e1=cdexp(-(Ep-xmu+n3*phi3*(0.,1.))/xT)
+!	e2=cdexp(-(Ep+xmu-n3*phi3*(0.,1.))/xT)
+!	n1=1.d0+e1
+!	n2=1.d0+e2
+!      termo=(xms/(2.d0*xT*Ep))*dreal((e1/n1)+(e2/n2))
+!          
+		dColor=Sum  !-termo	
+
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	    Color=Color+dColor
+
+      Enddo
+     
+	 C_ss =p**2*Color
+
+   
+	   RETURN	   
+         END
+!*************************************************************************
+!CONTRIBUCION DE LOS QUARKS u Y d AL GRAN POTENCIAL
+!*********************************
+        Function Fun_Omu(p)
+	  Implicit none
+	  Integer k,nreg,n3,poly,n3_inic
+        Complex(4) rg,w2, M,logui,n1,n2, loga
+        Real*4 Suma, dSuma,sigu,sigs,phi3,p,Ep,suma_ant
+        Real*4 pi2,N_c,xT,mu,xmu,xm,xms,G_s,H,Lambda,freq
+        Real*4 Fun_Omu,Color,dColor
+
+!	Intrinsic zlog, zexp,sqrt
+
+	Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+      
+
+	Color=0.0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+	Do n3=n3_inic,1
+
+        Suma=0.0
+
+       Do k = 0,3000
+	suma_ant=suma
+		freq=((2*k+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+
+      w2=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))**2+(1.,0.)*p**2
+
+		
+	If(nreg.eq.1)then
+		 M=(xm+sigu*rg(w2))
+	endif
+      
+	logui=clog((w2+M**2)/(w2+xm**2))
+ 
+       dSuma=real(logui)
+       
+	 Suma=Suma+dSuma
+      
+	if(suma .eq. suma_ant) exit
+
+	 Enddo
+	  
+      Ep=sqrt(p**2+xm**2)
+
+      n1=(1.0+cexp(-(Ep+xmu-n3*phi3*(0.,1.))/xT))
+	
+      n2=1.0+cexp(-(Ep-xmu+n3*phi3*(0.,1.))/xT)
+	
+       
+	loga=clog(n1*n2)
+ 	    dColor=Suma
+	    Color=Color+dColor+real(loga)/2.0e0
+	 Enddo
+	 
+	
+      Fun_Omu= p**2*Color
+
+	 
+       RETURN           
+       END
+!********************************************************************************
+!CONTRIBUCION DEL QUARK s al GRANPOTENCIAL
+!*********************************
+        Function Fun_Oms(p)
+	  Implicit none
+	  Integer k,nreg,n3,poly,n3_inic
+        Complex(4) rg,w2, M,logui,n1,n2, loga
+        Real*4 Suma, dSuma,sigu,sigs,phi3,p,Ep,suma_ant
+        Real*4 pi2,N_c,xT,mu,xmu,xm,xms,G_s,H,Lambda,freq
+        Real*4 Fun_Oms,Color,dColor
+
+
+!	Intrinsic zlog,zexp,sqrt
+
+	Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+      
+
+	Color=0.0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+	Do n3=n3_inic,1
+
+        Suma=0.0
+
+       Do k = 0,3000
+	suma_ant=suma
+		freq=((2*k+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+
+      w2=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))**2+(1.,0.)*p**2
+
+		
+	If(nreg.eq.1)then
+		 M=(xms+sigs*rg(w2))
+	endif
+      
+	logui=clog((w2+M**2)/(w2+xms**2))
+ 
+       dSuma=real(logui)
+       
+	 Suma=Suma+dSuma
+      
+	if(suma .eq. suma_ant) exit
+
+	 Enddo
+	  
+      Ep=sqrt(p**2+xms**2)
+
+      n1=(1.0+cexp(-(Ep+xmu-n3*phi3*(0.,1.))/xT))
+	
+      n2=1.0+cexp(-(Ep-xmu+n3*phi3*(0.,1.))/xT)
+	
+       
+	loga=clog(n1*n2)
+ 	    dColor=Suma
+	    Color=Color+dColor+real(loga)/2.0
+	 Enddo
+	 
+	
+      Fun_Oms= p**2*Color
+
+	 
+       RETURN           
+       END
+!********************************************************************************
+!POTENCIAL OMEGA TOTAL: u,d,s!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      Function Omega(su,ss,fi3)
+	Implicit none
+	Integer poly, nreg, INTERV
+	Real*4 su,ss,fi3,sigu,sigs,phi3
+	Real*4 BOUND,ERRABS,ERREL,ERREST
+	Real*4 xm,xms,xmu,pi2,N_c,xT,mu,G_s,H,Lambda,Omega
+	Real*4 Fun_Omu, Fun_Oms, xomu,xoms,ud_cont,s_cont,uds,S_s,S_u
+	Real*4 int_u,int_s,Ese_u,Ese_s,ter,Pot_U,U_poly
+
+	External QDAGI, Fun_Omu, Fun_Oms,S_s,S_u
+
+      Common/param_QDAGI/BOUND,ERRABS,ERREL,ERREST,INTERV 
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+	sigu=su
+	sigs=ss
+	phi3=fi3
+
+
+      CALL QDAGI (Fun_Omu,BOUND,INTERV,ERRABS,ERREL,xomu,ERREST)
+      CALL QDAGI (Fun_Oms,BOUND,INTERV,ERRABS,ERREL,xoms,ERREST)
+	CALL QDAGI (S_u,BOUND,INTERV,ERRABS,ERREL,int_u,ERREST)
+      CALL QDAGI (S_s,BOUND,INTERV,ERRABS,ERREL,int_s,ERREST)
+
+
+	Ese_u=(-8.e0*N_c*xT*int_u)/pi2
+	Ese_s=(-8.e0*N_c*xT*int_s)/pi2
+
+
+	ud_cont=2.e0*(sigu*Ese_u+G_s*Ese_u**2/2.0)
+	s_cont=sigs*Ese_s+G_s*Ese_s**2/2.0
+	uds=H*Ese_u**2*Ese_s/2.0
+	ter=(ud_cont+s_cont+uds)/2.0                !+U_poly(phi3,xT)
+
+      Omega=(-2.e0*N_c*xT/pi2)*(2.0*xomu+xoms)-ter+Pot_U(phi3,xT)
+!      write(*,*)'xoms',2.d0*xoms
+!      write(*,*)'Omega',Omega
+!	pause
+
+      return
+	end
+!*******************************************************************************
+!INCLUSI�N DEL POLYAKOV
+!********************************************************************************
+!Potencial efectivo logaritmico debido a la inclusion del Poliakov
+!*****************************************************       
+	 Function Pot_U(xphi3,temp)
+	Implicit none
+	Integer nreg, poly
+	 Real*4 pi2,N_c,xT,mu,G_s,H,Lambda 
+       Real*4 sigu,sigs,phi3,xphi3,temp,xmu,xm,xms
+	 Real*4 a_0,a_1,a_2,b_3,a_temp,b_temp,T_0,Traphi,loga
+	 Real*4 Pot_U 
+
+	Intrinsic cos,log
+
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+	 phi3=xphi3
+	 xT=temp
+
+	T_0=187.0  !temperatura critica de deconfinamiento
+
+	a_0=3.510
+	a_1=-2.470
+	a_2=15.20
+	b_3=-1.750
+   
+	a_temp=a_0+a_1*(T_0/xT)+a_2*(T_0/xT)**2
+	b_temp=b_3*(T_0/xT)**3
+     	
+
+	If(poly.eq.1)then
+	Traphi=0.0
+	loga=0.0
+	else
+	Traphi=(1.0/3.0)*(2.0*cos(xphi3/xT)+1.0)
+	loga=log(1.0-6.0*Traphi**2+8.0*Traphi**3-3.0*Traphi**4)
+	endif
+
+	
+      Pot_U=((-1.0e0/2.0e0)*a_temp*Traphi**2+b_temp*loga)*xT**4
+
+
+	RETURN	   
+
+         END
+!****************************************************************
+!Potencial efectivo polinomico debido a la inclusion del Poliakov
+!****************************************************************       
+	 Function U_poly(xphi3,temp)
+	Implicit none
+	Integer nreg, poly
+	 Real*4 pi2,N_c,xT,mu,G_s,H,Lambda 
+       Real*4 sigu,sigs,phi3,xphi3,temp,xmu,xm,xms
+	 Real*4 a_0,a_1,a_2,a_3,b_temp,T_0,Traphi,loga
+	 Real*4 U_poly,b_3,b_4,bet2
+
+	Intrinsic cos,log
+
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+	 phi3=xphi3
+	 xT=temp
+
+	T_0=187.e0  !temperatura critica de deconfinamiento (2+1)
+
+	a_0=6.75e0
+	a_1=-1.95e0
+	a_2=2.625e0
+	a_3=-7.44e0
+	b_3=0.75e0
+	b_4=7.5e0
+   
+	b_temp=a_0+a_1*(T_0/xT)+a_2*(T_0/xT)**2+a_3*(T_0/xT)**3
+     	
+	If(poly.eq.1)then
+	Traphi=0.0e0
+	else
+	Traphi=(1.0e0/3.0e0)*(2.0e0*cos(xphi3/xT)+1.0e0)
+	endif
+
+      bet2=-b_temp*Traphi**2/2.e0
+	
+      U_poly=(bet2-b_3*Traphi**3/3.e0+b_4*Traphi**4/4.e0)*xT**4
+
+	RETURN	   
+
+         END
+!*******************************************************************************
+!primera DERIVADA DEL GRANPOT RESPECTO DE PHI3 (QUARK u)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      Function Der1_Om_u(p)
+      Implicit none
+      Integer k,nreg,n3,n3_inic,poly
+      Complex(4) rg,w2,M,p0,e1,e2,n1,n2
+      Real*4 Sum, dSum,p,sigu,sigs,phi3,sum_ant,Color,dColor
+      Real*4 pi2,N_c,xT,mu,G_s,H,Lambda 
+	Real*4 Ep,xmu,xm,xms,Der1_Om_u,termo,freq
+	Complex(4) dT1dphi3,dT2dphi3,Contrib1,Contrib2,paren
+
+      
+	Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+      
+
+	Color=0.e0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+	Do n3=n3_inic,1
+
+        Sum=0.e0
+
+       Do k = 0,4000
+	sum_ant=sum
+
+		freq=((2*k+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+      
+	p0=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))
+      w2=p0**2+(1.,0.)*p**2
+
+	If(nreg.eq.1)then
+      M=(xm+sigu*rg(w2))
+      paren=-rg(w2)*(sigu/(Lambda**2))
+
+      Contrib1=2.e0*((M/(w2+M**2))*paren)
+	Contrib2=(xm**2-M**2)/((w2+M**2)*(w2+xm**2))
+	dT1dphi3=2.e0*n3*p0*(Contrib1+Contrib2)  !*0.0d0
+
+	Endif
+
+	!**************************************************************
+	
+       dSum=real(dT1dphi3)   !*0.d0
+       
+	 Sum=Sum+dSum
+      
+	if(sum .eq. sum_ant) exit
+      
+	 Enddo
+	  
+      Ep=sqrt(p**2+xm**2)
+!	write(*,*)Ey
+!	pause
+
+      e1=cexp(-(Ep+xmu-n3*phi3*(0.,1.))/xT)
+	e2=cexp(-(Ep-xmu+n3*phi3*(0.,1.))/xT)
+	n1=1.e0+e1
+	n2=1.e0+e2
+	
+	dT2dphi3=(0.,1.)*n3*((e1/n1)-(e2/n2))
+     
+	termo=real(dT2dphi3)
+    
+	    dColor=Sum   
+    
+	    Color=Color+dColor+termo/(xT*2.e0)
+	 Enddo
+	
+      Der1_Om_u = p**2*Color
+	 
+
+       RETURN           
+       END
+!*******************************************************************************
+!primera DERIVADA DEL GRANPOT RESPECTO DE PHI3 (QUARK s)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      Function Der1_Om_s(p)
+      Implicit none
+      Integer k,nreg,n3,n3_inic,poly
+      Complex(4) rg,w2,M,p0,e1,e2,n1,n2
+      Real*4 Sum, dSum,p,sigu,sigs,phi3,sum_ant,Color,dColor
+      Real*4 pi2,N_c,xT,mu,G_s,H,Lambda 
+	Real*4 Ep,xmu,xm,xms,Der1_Om_s,termo,freq
+	Complex(4) dT1dphi3,dT2dphi3,Contrib1,Contrib2,paren
+
+!	Intrinsic clog, cexp,sqrt,exp,cdsqrt
+      
+	Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+      
+
+	Color=0.e0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+	Do n3=n3_inic,1
+
+        Sum=0.e0
+
+       Do k = 0,4000
+	sum_ant=sum
+
+		freq=((2*k+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+      
+	p0=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))
+      w2=p0**2+(1.,0.)*p**2
+
+	If(nreg.eq.1)then
+      M=(xms+sigs*rg(w2))
+      paren=-rg(w2)*(sigs/(Lambda**2))
+
+      Contrib1=2.e0*((M/(w2+M**2))*paren)
+	Contrib2=(xms**2-M**2)/((w2+M**2)*(w2+xms**2))
+	dT1dphi3=2.e0*n3*p0*(Contrib1+Contrib2)
+
+	Endif
+
+	!**************************************************************
+	
+       dSum=real(dT1dphi3)
+       
+	 Sum=Sum+dSum
+      
+	if(sum .eq. sum_ant) exit
+      
+	 Enddo
+	  
+      Ep=sqrt(p**2+xms**2)
+!	write(*,*)Ey
+!	pause
+
+      e1=cexp(-(Ep+xmu-n3*phi3*(0.,1.))/xT)
+	e2=cexp(-(Ep-xmu+n3*phi3*(0.,1.))/xT)
+	n1=1.e0+e1
+	n2=1.e0+e2
+	
+	dT2dphi3=(0.,1.)*n3*((e1/n1)-(e2/n2))
+     
+	termo=real(dT2dphi3)
+    
+	    dColor=Sum   
+    
+	    Color=Color+dColor+termo/(xT*2.e0)
+	 Enddo
+	
+      Der1_Om_s = p**2*Color
+	 
+
+       RETURN           
+       END
+
+!*******************************************************************************
+!DERIVADA TOTAL DE OMEGA RESPECTO DE PHI3
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      Function dOmega_dphi3(su,ss,fi3)
+	Implicit none
+	Integer nreg, poly,INTERV,pot1
+	Real*4 su,ss,fi3,sigu,sigs,phi3,dOmega_dphi3
+	Real*4 pi2,N_c,xT,mu,G_s,H,Lambda,xm,xms,xmu
+	Real*4 BOUND,ERRABS,ERREL,ERREST
+	Real*4 Der1_Om_u,Der1_Om_s,x1u_dphi3,x1s_dphi3
+	Real*4 dertrace,trace,paren,Valor,T_0,a_0,a_1,a_2,a_3
+	Real*4 a_temp,b_temp,denom,Potenderiv,dUdphi3,S_s,S_u
+	Real*4 dUpolyfi3,b_3,b_4,bet2
+
+
+	External QDAGI,Der1_Om_u,Der1_Om_s
+
+      Common/param_QDAGI/BOUND,ERRABS,ERREL,ERREST,INTERV 
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+      sigu=su
+	sigs=ss
+	phi3=fi3
+
+      Pot1=1
+
+      Valor=(-2.e0*N_c*xT/pi2)
+
+      trace=(1.e0/3.e0)*(1.e0+2.e0*cos(phi3/xT))
+      dertrace=(-2.e0/(3.e0*xT))*sin(phi3/xT)
+
+
+	If(Pot1.eq.1)then
+	T_0=187.e0  !temperatura critica de deconfinamiento
+
+	a_0=3.51e0
+	a_1=-2.47e0
+	a_2=15.2e0
+	b_3=-1.75e0
+   
+	a_temp=a_0+a_1*(T_0/xT)+a_2*(T_0/xT)**2
+	b_temp=b_3*(T_0/xT)**3
+
+      denom=(1.e0-6.e0*trace**2+8.e0*trace**3-3.e0*trace**4)
+
+	paren=-a_temp-b_temp*(12.e0-24.e0*trace+12.e0*trace**2)/denom
+
+	dUdphi3=xT**4*dertrace*trace*paren
+
+	else
+
+	T_0=187.e0  !temperatura critica de deconfinamiento (2+1)
+
+	a_0=6.75e0
+	a_1=-1.95e0
+	a_2=2.625e0
+	a_3=-7.44e0
+	b_3=0.75e0
+	b_4=7.5e0
+   
+	b_temp=a_0+a_1*(T_0/xT)+a_2*(T_0/xT)**2+a_3*(T_0/xT)**3
+	bet2=-b_temp*trace**2
+	
+      dUdphi3=(-b_3*trace**3+b_4*trace**4)*dertrace*xT**4
+	endif
+!	write(*,*)dUdphi3
+!	pause
+
+	CALL QDAGI (Der1_Om_u,BOUND,INTERV,ERRABS,ERREL,x1u_dphi3,ERREST)
+      CALL QDAGI (Der1_Om_s,BOUND,INTERV,ERRABS,ERREL,x1s_dphi3,ERREST)
+!	write(*,*)int_u,int_s,x1u_dphi3,x1s_dphi3
+!	pause
+!      write(*,*)'integral', Valor*x1u_dphi3
+!	pause
+
+	Potenderiv=(Valor)*(2.e0*x1u_dphi3+x1s_dphi3)
+
+	dOmega_dphi3=Potenderiv+dUdphi3
+
+!	write(*,*)dOmega_dphi3/2.d0
+!	pause
+
+	return
+	end
+
+!********************************************************************************
+!Derivada analitica del Granpotencial de u respecto de mu
+      Function Derivu_mu(p)
+      Implicit none
+      Integer k,nreg,n3,n3_inic,poly
+      Complex(4) rg,w2,M,p0,e1,e2,n1,n2
+      Real*4 Sum, dSum,p,sigu,sigs,phi3,sum_ant,Color,dColor
+      Real*4 pi2,N_c,xT,mu,G_s,H,Lambda 
+	Real*4 Ep,xmu,xm,xms,Derivu_mu,termo,freq
+	Complex(4) dT1dmu,dT2dmu,Contrib1,Contrib2,paren
+
+!	Intrinsic clog, cexp,sqrt,exp,cdsqrt
+      
+	Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+      
+
+	Color=0.e0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+	 Do n3=n3_inic,1	  
+        Sum=0.e0
+
+       Do k = 0,4000
+	sum_ant=sum
+
+		freq=((2*k+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+      
+	p0=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))
+      w2=p0**2+(1.,0.)*p**2
+
+	If(nreg.eq.1)then
+
+      M=(xm+sigu*rg(w2))
+       paren=-rg(w2)*(sigu/(Lambda**2))
+
+      Contrib1=2.e0*((M/(w2+M**2))*paren)
+	Contrib2=(xm**2-M**2)/((w2+M**2)*(w2+xm**2))
+	dT1dmu=(2.e0*(0.,1.)*p0)*(Contrib1+Contrib2)
+
+	Endif
+	!**************************************************************
+	
+       dSum=real(dT1dmu)
+       
+	 Sum=Sum+dSum
+      
+	if(sum .eq. sum_ant) exit
+      
+	 Enddo
+	  
+      Ep=sqrt(p**2+xm**2)
+!	write(*,*)Ey
+!	pause
+
+      e1=cexp(-(Ep+xmu-n3*phi3*(0.,1.))/xT)
+	e2=cexp(-(Ep-xmu+n3*phi3*(0.,1.))/xT)
+	n1=1.e0+e1
+	n2=1.e0+e2
+	
+	dT2dmu=((e1/n1)-(e2/n2))
+!	write(*,*)dT2dphi3
+!	pause
+     
+	termo=real(dT2dmu)
+    
+	    dColor=Sum   
+    
+	    Color=Color+dColor-termo/(xT*2.e0)
+	 Enddo
+	
+      Derivu_mu = p**2*Color
+	 
+
+       RETURN           
+       END     
+!********************************************************************************
+!Derivada analitica del Granpotencial de s respecto de mu
+      Function Derivs_mu(p)
+      Implicit none
+      Integer k,nreg,n3,n3_inic,poly
+      Complex(4) rg,w2,M,p0,e1,e2,n1,n2
+      Real*4 Sum, dSum,p,sigu,sigs,phi3,sum_ant,Color,dColor
+      Real*4 pi2,N_c,xT,mu,G_s,H,Lambda 
+	Real*4 Ep,xmu,xm,xms,Derivs_mu,termo,freq
+	Complex(4) dT1dmu,dT2dmu,Contrib1,Contrib2,paren
+
+	Intrinsic clog,cexp,sqrt
+      
+	Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/activia/nreg
+      Common/variablem/xm,xms
+	Common/variablemu/xmu
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+      
+
+	Color=0.e0
+       If(poly.eq.1) then
+               n3_inic=1
+       else
+               n3_inic=-1
+       endif
+
+	 Do n3=n3_inic,1	  
+        Sum=0.e0
+
+       Do k = 0,4000
+	sum_ant=sum
+
+		freq=((2*k+1)*sqrt(pi2)*xT)!Frecuencias de Matsubara
+      
+	p0=(freq*(1.,0.)+xmu*(0.,1.)+n3*phi3*(1.,0.))
+      w2=p0**2+(1.,0.)*p**2
+
+	If(nreg.eq.1)then
+
+      M=(xms+sigs*rg(w2))
+       paren=-rg(w2)*(sigs/(Lambda**2))
+
+      Contrib1=2.e0*((M/(w2+M**2))*paren)
+	Contrib2=(xms**2-M**2)/((w2+M**2)*(w2+xms**2))
+	dT1dmu=(2.e0*(0.,1.)*p0)*(Contrib1+Contrib2)
+
+	Endif
+
+	!**************************************************************
+	
+       dSum=real(dT1dmu)
+       
+	 Sum=Sum+dSum
+      
+	if(sum .eq. sum_ant) exit
+      
+	 Enddo
+	  
+      Ep=sqrt(p**2+xm**2)
+!	write(*,*)Ey
+!	pause
+
+      e1=cexp(-(Ep+xmu-n3*phi3*(0.,1.))/xT)
+	e2=cexp(-(Ep-xmu+n3*phi3*(0.,1.))/xT)
+	n1=1.e0+e1
+	n2=1.e0+e2
+	
+	dT2dmu=((e1/n1)-(e2/n2))
+!	write(*,*)dT2dphi3
+!	pause
+     
+	termo=real(dT2dmu)
+    
+	    dColor=Sum   
+    
+	    Color=Color+dColor-termo/(xT*2.e0)
+
+	 Enddo
+	
+      Derivs_mu = p**2*Color
+	
+
+       RETURN           
+       END     
+!*********************************************************************************
+!Calculo de la densidad    
+      Subroutine Densidad(x,Denu,Dens,rho_B)
+	Implicit none
+	Integer INTERV,N,poly
+	Parameter (N=3)
+	Real*4 ERRABS,ERREL,ERREST,X(3)
+	Real*4 sigu,sigs,phi3,Derivu_mu,Denu,Dens,rho_B
+	Real*4 pi2,N_c,xT,mu,G_s,H,Lambda,xdensiu,xdensis
+	Real*4 BOUND,Valor
+
+	EXTERNAL QDAGI, Derivu_mu, Derivs_mu
+
+	Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+      Common/param_QDAGI/BOUND,ERRABS,ERREL,ERREST,INTERV 
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+
+      
+	Valor=(-2.e0*N_c*xT/pi2)
+	
+      CALL QDAGI(Derivu_mu,BOUND,INTERV,ERRABS,ERREL,xdensiu,ERREST)
+      CALL QDAGI(Derivs_mu,BOUND,INTERV,ERRABS,ERREL,xdensis,ERREST)
+      
+
+	If(poly.eq.1)then
+
+	Denu=0.0e0
+	Dens=0.0e0
+	else	  
+	Denu=-Valor*xdensiu
+	Dens=-Valor*xdensis
+
+	endif
+
+	rho_B=(1.e0/3.e0)*(2.e0*Denu+Dens)
+
+
+	RETURN
+	END
+!********************************************************************************
+!Resolucion del sistema de ecuaciones no lineales
+        SUBROUTINE FCN (X, F, N)
+        Implicit none
+        INTEGER N, INTERV,nreg,poly
+        Real*4 X(3),F(N),sigu,sigs,phi3,campu,camps,sigumax,sigsmax 
+	  Real*4 BOUND,ERRABS,ERREL,ERREST,pi2,N_c,xT,mu,G_s,H,Lambda
+	  Real*4 int_u,int_s,S_u,S_s,Ese_u,Ese_s,xmu,dOmega_dphi3
+
+      EXTERNAL QDAGI,S_u,S_s  
+   
+    
+      Common/dat1/pi2,N_c,xT,mu,G_s,H,Lambda
+	Common/param_QDAGI/BOUND,ERRABS,ERREL,ERREST,INTERV 
+	Common/polyakov/poly
+	Common/fcnsu3/sigu,sigs,phi3
+	Common/variablemu/xmu
+	Common/maxvalues/sigumax,sigsmax 
+
+!      call Map(x,campu,camps)
+
+
+	sigu=x(1)   !campu     !x(1)   !
+	sigs=x(2)    !camps      !x(2)      !
+	phi3=x(3)
+
+
+      CALL QDAGI (S_u,BOUND,INTERV,ERRABS,ERREL,int_u,ERREST)
+      CALL QDAGI (S_s,BOUND,INTERV,ERRABS,ERREL,int_s,ERREST)
+
+
+!      pause
+!	write(*,*)''
+!	write(*,*)'antes','sigu=',sigu,'sigs=',sigs,'phi3=',phi3
+!	Write(*,*)'mu=',xmu,'T=',xt
+!      write(*,*)''
+
+	Ese_u=(-8.e0*N_c*xT*int_u)/pi2
+	Ese_s=(-8.e0*N_c*xT*int_s)/pi2
+
+!      write(*,*)'S_u=',Ese_u,'S_s=',Ese_s
+!      pause
+
+!	write(*,*)Ese_u,N_c
+!	pause
+
+	  
+      If(poly.eq.1)then
+
+	x(3)=0.0e0
+
+	F(1)=sigu+G_s*Ese_u+H*Ese_u*Ese_s/2.e0
+	F(2)=sigs+G_s*Ese_s+H*Ese_u**2/2.e0
+	F(3)=0.0e0
+	else
+	F(1)=sigu/G_s+Ese_u+H*Ese_u*Ese_s/(2.e0*G_s)
+!	F(1)=sigu+G_s*Ese_u+H*Ese_u*Ese_s/2.e0
+	F(2)=sigs+G_s*Ese_s+H*Ese_u**2/2.e0
+	F(3)=dOmega_dphi3(sigu,sigs,phi3)
+      endif
+!      write(*,*)''
+!	write(*,*)'f1=',f(1),'f2=',f(2),'f3=',f(3)
+!      write(*,*)''
+!	write(*,*)'Ese_u=',Ese_u,'Ese_=',Ese_s
+!	write(*,*)''
+!	write(*,*)'despues','sigu=',sigu,'sigs=',sigs,'phi3=',phi3
+!	write(*,*)''
+!	pause
+
+       RETURN           
+       END
+!********************************************************************************
+      Subroutine Map(x,campu,camps)
+	Real*4 x(3),campu,camps,sigumax,sigsmax
+		
+	Common/maxvalues/sigumax,sigsmax 
+
+      campu=sigumax*(sin(x(1)))**2
+	camps=sigsmax*(sin(x(2)))**2
+
+	return
+	end
+  

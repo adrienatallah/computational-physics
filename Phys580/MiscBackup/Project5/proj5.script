@@ -1,0 +1,20 @@
+#!/bin/bash
+
+
+# Adrien Atallah
+# Project 5 script file
+# Runs 'project5.f90' with various input files to make 
+# plots for various Initial configurations
+
+echo "Adrien Atallah"
+
+gfortran -o project5.x project5.f90
+#gfortran -o project5scaled.x project5scaled.f90
+
+#./project5.x < proj5basic1.input
+#./project5.x < proj5basic2.input
+#./project5.x < proj5advanced1.input
+./project5.x < proj5advanced2.input
+
+#./project5scaled.x < proj5scaled.input
+

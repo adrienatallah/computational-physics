@@ -1,0 +1,18 @@
+# These are the coefficeint solutions I got using
+# 2nd order, 3rd order and 4th order polynomials.
+# The first column contains values of the 2nd order
+# polynomial coefficients, the second column contains
+# values for the 3rd order and the third column, 4th order
+
+  54.609474       54.818661                 NaN
+  4.72717173E-02 -5.29055193E-04   11.806675    
+ -3.14877456E-04  1.07123342E-03 -0.50816059    
+  		 -9.74216073E-06  7.85936695E-03
+  		   		 -3.94723247E-05
+
+
+# Judging from the plot of the 2nd and 3rd order polynomials
+# with the data, the 2nd order polynomial seems to better fit
+# the data within the error bars.  The 3rd degree polynomial
+# appears more unstable, jumping around, barely inside the
+# error bars.

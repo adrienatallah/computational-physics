@@ -1,0 +1,25 @@
+#!/bin/bash
+
+
+#Adrien Atallah
+#Project 4 script file
+
+echo "Adrien Atallah"
+
+gfortran -o project4.x project4.f90
+gfortran -o ChangeRadius.x ChangeRadius.f90
+
+i=1
+while [ "$i" -le 4 ]
+do
+	./ChangeRadius.x
+	cat input1 Radius input2 > proj4.input
+
+	project4.x < proj4.input
+
+	cat GroundStateWS.txt $i
+	
+	i=`expr $i + 1`
+done
+
+cat Radius_Reset > Radius

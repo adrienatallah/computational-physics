@@ -1,0 +1,2 @@
+gfortran -ffree-form -o project1 project1.f
+

@@ -1,0 +1,159 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!Adrien Atallah
+!Project 4
+!
+!This program 
+! 
+!	Intermediate variables: 
+!		-'data': array that reads in data off 'dataset4.dat'
+!		-'G2', 'G3', 'G4': arrays containg G matrix values for 2nd 3rd and 4th 
+!					   order polynomials respectively
+!		-'Gtemp2', 'Gtemp3', 'Gtemp4': used for temporary storage of G's
+!		-'Ginv2', 'Ginv3', 'Ginv4': inverse of G matrix for each order polynomial
+!		-'Psi2', 'Psi3', 'Psi4': arrays to store Psi matrix for each order polynomial
+!		-'C2', 'C3', 'C4': arrays to store coefficient matrix for each order polynomail
+!
+! 	Subroutines used: 
+!		-'ReadData(data)'
+!			-Reads in data from 'dataset4.dat' and stores in 'data' array
+!		-'CalculateGmatrix(data, G2, G3, G4)'
+!			-takes in array 'data' and calculates G matricies
+!		-'CalculatePsiMatrix(data, Psi2, Psi3, Psi4) '
+!			-takes in array 'data' and calculates Psi matricies
+!		-'MatInv(Gtemp2, Ginv2, 3, 3, index)'
+!			-computes inverse of a square matrix, in this case 'Gtemp2'
+!		-'CalculateCoeff(Ginv2, Ginv3, Ginv4, Psi2, Psi3, Psi4, C2, C3, C4)'
+!			-takes in G inverse and Psi matrices for each order polynomial
+!			 and calculates coefficient matrices for each order polynomial and
+!			 also creates 'fort.3'
+!		-'CalculateTemp(data, C2, C3, C4)'
+!			-calcuates temperatures for each order polynomials and creates
+!			 data files 'fort.7', 'fort.8', 'fort.9'
+!		-'Extrapolate(C2)'
+!			-uses 2nd order polynomial to extrapolate the temperature to 
+!			 the year 2050 and creates 'fort.10'
+!	
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Program project4
+ implicit none
+ double precision :: c, hbar, V0, m, a !Constants
+ 	!Declare constant values as parameters:
+ parameter (c = 1)
+ parameter (hbar = 197.33) !c = 1 makes hbar = 197.33 MeV-fm = 197.33*10E-15 MeV-m
+ parameter (V0 = 50) !units are in MeV
+ parameter (m = 939) !units are in MeV
+ parameter (a =0.2) !units are in femtometers or fermis, where 1fm = 10E-15m 
+ 
+ double precision :: R, L
+ integer :: N 
+ 	!input variables
+ 
+ double precision :: x, dx, PEmat(100, 100), Psi(1000) 
+ 	!Intermediate variables
+    
+ character :: continue = 'y' 
+ 
+ 
+ do while (continue == 'y' .or. continue == 'Y')    
+
+
+ 	print *, ' '
+	print *, 'Computational Project 4:'
+	print *, 'Numerical Solutions to the Woods-Saxon Potential'
+	print *, 'Written by: Adrien Atallah'
+	print *, ' '
+
+	print *, ' '
+	print *, 'Enter the size of the box, L'
+	print *, ' '
+	read *, L
+	
+	print *, ' '
+	print *, 'Enter the number of lattice points'
+	print *, ' '
+	read *, N
+	
+	print *, ' '
+	print *, 'Enter the nuclear radius value (in femtometers or fermis)'
+	print *, ' '
+	read*, R
+	
+	dx = (2*L)/(N-1)
+	print *, 'dx = ', dx
+	
+	call PEmatrix(a, R, V0, x, dx, N, L, PEmat)
+
+!!!!!!!!!!!!!
+!Ask user if they want to run the program again
+!!!!!!!!!!!!!!	
+	print *, ' '
+10	print *, 'Would you like to run the program again?'
+	print *, 'type "y" for yes, "n" for no'
+	print *, ' '
+	read *, continue	
+	
+	
+	if (continue /= 'n' .and. continue /= 'N' .and. continue /= 'y' .and. continue /= 'Y') then
+		print *, ' '
+		print *, 'Invalid entry, please try again'
+		print *, ' '
+		goto 10
+	endif
+end do
+ 
+END  
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!PEmatrix(a, R, V0, x, dx, N, L, PEmat) initializes diagonal matrix for the potential
+! energy
+!
+! 	Functions used: 
+!		-'V(a, R, V0, x) '
+!			-returns the potential for a certain x value
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine PEmatrix(a, R, V0, x, dx, N, L, PEmat)
+implicit none
+
+ double precision, intent(in) :: a, R, V0, x, dx
+ integer, intent(in) :: N, L
+ 	!input variables
+ 		
+ integer :: i, j 
+ double precision :: V, xi 
+ 	!intermediate variables
+ 		
+ double precision, intent(out) :: PEmat(N, N)
+ 	!output variables
+ 
+
+ do i = 1, N !initialize NxN Potential Energy matrix to 0
+ 	do j = 1, N
+		PEmat(i, j) = 0
+	enddo
+ enddo    
+
+
+ do i = 1, N !initialize NxN diagonalized Potential Energy matrix 
+	xi = -L + (i - 1)*dx 
+	PEmat(i, i) = V(a, R, V0, xi)
+	print*, 'PEmat (', i, i, ')=', PEmat(i, i)
+ enddo  
+ 
+		
+return
+end	
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Function V(a, R, V0, x) returns the potential for a certain x value, using constants
+! a, R, V0 as defined in main program
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ double precision function V(a, R, V0, x)
+ implicit none
+ 
+ double precision, intent(in) :: a, R, V0, x
+ 
+V = -V0/(1 + exp( (abs(x) - R)/a ) )
+
+ return
+ end 

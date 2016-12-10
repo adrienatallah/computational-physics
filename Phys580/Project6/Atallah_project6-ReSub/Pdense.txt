@@ -1,0 +1,4 @@
+ # Adrien Atallah
+ # Project 6
+ # Contains the total probability density
+   2.9000168    

@@ -1,0 +1,8 @@
+Looks good.
+
+What I would like for you to do is to modify your subroutine so that you use a generic f(x) instead of just putting x sin x every where you need to place the function.  In addition, you faced a little bit of trouble in recreating the error plot with an expected dependence on dx.  This is because you used real instead of double precision.  Commenting is adequate because x and dx are self explanatory, but you should begin getting comfortable labeling exactly what your input variables stand for, just like you did with your output variables.
+
+Please make the corrections listed above and I'll be happy to give you an A for this project.  I am being understanding of difficulties because this is the first project and partly because of the power outage, but will have higher expectations for timeliness in the next project.  Please return your project (and new output using double precision instead of real) by Friday the 23rd.
+
+Also, as I mentioned in class, you will want to have your program inform the user what file you printed, and what is in them.  Also, place comments in your output file (you can do it with '#' in gnuplot) to tell you what is found in the file and what each column is.
+
