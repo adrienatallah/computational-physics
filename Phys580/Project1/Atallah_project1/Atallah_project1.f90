@@ -2,8 +2,8 @@
 !Adrien Atallah
 !Project 1
 !
-!This program uses the 3pt and 5pt formulas to numerically approximate the second derivative of a function 
-!of x with respect to x.  It will generate two data files; fort.8 contains the values of the difference
+!This program uses the 3pt and 5pt formulas to numerically approximate the second derivative as a function of x of a function. 
+!.  It will generate two data files; fort.8 contains the values of the difference
 !between the 3pt approximation and the exact values in one column and the stepsize in the other, fort.9 
 !contains the values of the difference between the 5pt approximation and the exact values in one column 
 !and the stepsize in the other.  The purpose of generating these two data files will be to make a plot
